@@ -1,57 +1,46 @@
-# Define triggers to run the pipeline when changes are made to the main branch
 trigger:
 - main
 
-# Define the pool of agents to execute the pipeline jobs
-pool: 'Azure Piplines'
-Image: 'Windows-Latest'
-  
+pool:
+  vmImage: 'windows-latest'
 
-# Define the stages of the pipeline
 stages:
 - stage: Build
-  displayName: 'Build Stage'
   jobs:
   - job: BuildJob
-    displayName: 'Build'
     steps:
-    - script: |
-        # Add commands here to compile your source code
-        # For example:
-        # npm install
-        # npm run build
-      displayName: 'Compile Source Code'
-    - task: PublishBuildArtifacts@1
+    - task: UsePythonVersion@0
       inputs:
-        pathtoPublish: '$(Build.SourcesDirectory)'
-        artifactName: 'drop'
-        publishLocation: 'pipeline'
+        versionSpec: '3.x'
+        addToPath: true
+    - script: |
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      displayName: 'Install dependencies'
+    - script: |
+        echo "Compiling Python code..."
+        python -m py_compile Greetings.py
+      displayName: 'Compile Python script'
 
 - stage: Test
-  displayName: 'Test Stage'
   jobs:
   - job: TestJob
-    displayName: 'Test'
     steps:
     - script: |
-        # Add commands here to run unit tests and code quality checks
-        # For example:
-        # npm test
-        # sonar-scanner
-      displayName: 'Run Tests and Code Quality Checks'
+        echo "Running tests..."
+        # If you have tests written with pytest or another framework, run them here
+        # pytest
+      displayName: 'Run tests'
 
 - stage: Deploy
-  displayName: 'Deploy Stage'
   jobs:
-  - deployment: DeployJob
-    displayName: 'Deploy'
-    environment: 'Staging'
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          - script: |
-              # Add commands here to deploy the application
-              # For example:
-              # kubectl apply -f deployment.yaml
-            displayName: 'Deploy Application'
+  - job: DeployJob
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    steps:
+    - script: |
+        echo "Deploying to staging environment..."
+        # Here you would include a script that performs the actual deployment
+        # For example, this could be an Azure CLI script to deploy to an Azure service
+        # Make sure to configure the Azure service connection if you are deploying to Azure
+        # az webapp up --name <app_name> --resource-group <resource_group>
+      displayName: 'Deploy to staging'
